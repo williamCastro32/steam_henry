@@ -1,3 +1,0 @@
-datasets/data_funcion1.csv filter=lfs diff=lfs merge=lfs -text
-datasets/user_items.csv filter=lfs diff=lfs merge=lfs -text
-datasets/user_items.csv.gz filter=lfs diff=lfs merge=lfs -text
