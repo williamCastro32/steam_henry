@@ -1,14 +1,15 @@
 from funciones import *
 from fastapi import FastAPI
-import pandas as pdpip
+import pandas as pd
 
 app = FastAPI(debug=True)
 
 #http://127.0.0.1:8000
+#https://steam-game-mlops.onrender.com
 
 @app.get('/')
 def bienvenida():
-    return {'API de consultas a una base de datos de Steam, /docs en el link para acceder a las funciones de consultas.'}
+    return {'API de consultas base de datos  Steam Games, /docs en el link para  las funciones de consultas.'}
 
 @app.get('/PlayTimeGenre/{genero}')
 def PlayTimeGenres(genero:str):
@@ -63,5 +64,23 @@ def sentiment_analys(year:int):
 
     try:
         return sentiment_analysis(year)
+    except Exception as e:
+        return {"Error": str(e)}
+    
+@app.get('/recomendacion_juego/{id_producto}')
+def obtener_recomendacion_juego(id_producto:int):
+    '''Ingresando el id de producto, deberíamos recibir una lista con 5 juegos recomendados similares al ingresado.'''
+
+    try:
+        return recomendacion_juego(id_producto)
+    except Exception as e:
+        return {"Error": str(e)}
+    
+@app.get('/recomendacion_usuario/{id_usuario}')
+def obtener_recomendacion_usuario(id_usuario:str):
+    ''' Ingresando el id de un usuario, deberíamos recibir una lista con 5 juegos recomendados para dicho usuario.'''
+
+    try:
+        return recomendacion_usuario(id_usuario)
     except Exception as e:
         return {"Error": str(e)}

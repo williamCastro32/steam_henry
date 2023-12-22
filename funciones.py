@@ -1,5 +1,8 @@
 import pandas as pd
-
+from sklearn.metrics.pairwise import cosine_similarity
+import pickle
+from surprise import SVD
+import numpy as np
 
 '''FUNCION_1'''
 
@@ -155,4 +158,80 @@ def sentiment_analysis(anio: int):
 
     return  result
 
+'''Recomendaciones 1'''
 
+def recomendacion_juego(id_producto):
+    '''Ingresando el id de producto, deberíamos recibir una lista con 5 juegos recomendados similares al ingresado.'''
+
+    if not isinstance(id_producto, int):
+        try:
+            id_producto = int(id_producto)
+        except ValueError:
+            return 'El Id debe ser un número entero'
+
+    df_steam_games_with_dummies = pd.read_csv('./datasets/df_steam_games_with_dummies.csv.gz')
+    steam_game_id_title = pd.read_csv('./datasets/steam_games_id_title.csv.gz')
+    #Verificamos si el id ingresado esta en la base de datos
+    if id_producto not in df_steam_games_with_dummies['id'].unique():
+        return "ID no encontrado"
+    #convertimos la columna id en index
+    df_steam_games_with_dummies.set_index('id', inplace=True)
+
+    # Obtener las características del juego dado su ID
+    juego_caracteristicas = df_steam_games_with_dummies.loc[id_producto].values.reshape(1, -1)
+
+    # Calcular la similitud del coseno entre el juego dado y todos los otros juegos
+    similarities = cosine_similarity(df_steam_games_with_dummies.values, juego_caracteristicas)
+
+    # Ordenar los juegos según su similitud y tomar los 6 juegos más similares (el primero es el mismo juego)
+    similar_juegos_indices = similarities.flatten().argsort()[-6:-1][::-1]
+
+    # Obtener los títulos de los juegos recomendados
+    recommended_juegos = steam_game_id_title.loc[similar_juegos_indices, 'title'].tolist()
+
+    return recommended_juegos
+
+
+'''Recomendaciones 2'''
+
+def recomendacion_usuario(id_usuario:str):
+    ''' Ingresando el id de un usuario, deberíamos recibir una lista con 5 juegos recomendados para dicho usuario.'''
+    #importamos los datasets
+    df_ratings = pd.read_csv('./datasets/user_review_rating.csv.gz')
+    steam_game_id_title = pd.read_csv('./datasets/steam_games_id_title.csv.gz')
+
+    with open('./datasets/SVD_model.pkl', 'rb') as archivo:
+        model = pickle.load(archivo)
+
+    #Verificamos si el usuario esta en la base de datos
+    if id_usuario not in df_ratings['user_id'].unique():
+        return "ID no encontrado"
+    
+    # Obtener todos los juegos disponibles
+    todos_los_juegos = df_ratings['item_id'].unique()
+
+    # Obtener los juegos valorados por el usuario
+    juegos_valorados_por_usuario = df_ratings[df_ratings['user_id'] == id_usuario]['item_id'].unique()
+
+    # Obtener los juegos no valorados por el usuario
+    juegos_no_valorados = list(set(todos_los_juegos) - set(juegos_valorados_por_usuario))
+
+    # Crear un DataFrame con los juegos no valorados por el usuario
+    df_juegos_no_valorados = pd.DataFrame(juegos_no_valorados, columns=['item_id'])
+
+    # Hacer predicciones para los juegos no valorados por el usuario
+    df_juegos_no_valorados['prediccion'] = df_juegos_no_valorados['item_id'].apply(lambda x: model.predict(id_usuario, x).est)
+
+    # Ordenar los juegos por la calificación predicha y tomar los primeros n juegos como recomendación
+    juegos_recomendados = df_juegos_no_valorados.sort_values(by='prediccion', ascending=False)['item_id'].tolist()
+
+    # Obtener los títulos de los juegos recomendados que existen en steam_game_id_title
+    recommended_juegos = []
+    for juego_id in juegos_recomendados:
+       juego_titulo = steam_game_id_title.loc[steam_game_id_title['id'] == juego_id, 'title'].tolist()
+       if juego_titulo:
+            recommended_juegos.append(juego_titulo[0])
+            if len(recommended_juegos) == 5:
+                break
+
+    return recommended_juegos
